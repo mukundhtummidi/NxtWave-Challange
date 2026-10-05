@@ -136,10 +136,31 @@ def public_base(request: Request) -> str:
     return f"{proto}://{host}"
 
 
+import ipaddress
+
+# Proxies in front of the app (Cloudflare, Google LB, cluster-internal). Each appends to X-Forwarded-For,
+# so the real client is the right-most entry that is NOT one of these; anything left of it is spoofable.
+TRUSTED_PROXY_NETS = [ipaddress.ip_network(c.strip()) for c in os.environ["TRUSTED_PROXY_CIDRS"].split(",") if c.strip()]
+
+
+def _is_trusted_proxy(value: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return any(ip in net for net in TRUSTED_PROXY_NETS)
+
+
 def client_ip(request: Request) -> str:
+    """Real client IP for rate limiting (walks X-Forwarded-For from the right, skipping trusted proxies)."""
     fwd = request.headers.get("x-forwarded-for")
     if fwd:
-        return fwd.split(",")[0].strip()
+        parts = [p.strip() for p in fwd.split(",") if p.strip()]
+        for p in reversed(parts):
+            if not _is_trusted_proxy(p):
+                return p
+        if parts:
+            return parts[0]
     return request.client.host if request.client else "unknown"
 
 

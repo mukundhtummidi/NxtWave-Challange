@@ -1,0 +1,31 @@
+{
+  "summary": "Final-check pass. Full backend pytest suite (`cd /app/backend && python -m pytest tests -q -p no:cacheprovider`): 143 passed, 0 failed, 13 warnings in 152.23s. Dedicated regression tests/test_final_check.py (new): 9 passed, 1 skipped (the skipped share-page test depended on registering a throwaway seat from the test runner IP; the preceding spoofed-XFF rate-limit test exhausted that IP's bucket by design — share-page label was verified separately via curl against existing seat NW-KGGN, 3 matches). Confirmed: POST /api/admin/login with wrong password -> 401; GET /api/admin/{stats,me,export.csv} with no token -> 401; POST /api/admin/demo-visibility and /api/admin/verify with wrong PIN -> 401; POST /api/register with duplicate email returns 409 for both identical and mixed-case input; register rate limit cannot be bypassed by rotating a spoofed X-Forwarded-For header (12 x 201 then 429 on the 13th from the same egress IP after `supervisorctl restart backend`); workshop date identical everywhere — GET /api/config workshop.datetime_label == 'Sat, 17 Oct 2026 · 6:00 PM IST' and start_iso == '2026-10-17T18:00:00+05:30'; /api/share/NW-KGGN HTML contains the same label; landing page testID=hero-datetime renders the same label; /ticket/NW-KGGN hall ticket body contains 'Sat, 17 Oct 2026' and '6:00 PM IST'; owner-view add-to-calendar card (localStorage hallticket.my_seat JSON-encoded == seat) shows the same label; buildIcs-equivalent of src/calendar.ts over Workshop.start_iso produces DTSTART 20261017T123000Z and DTEND 20261017T133000Z. No failures to fix. 'RL Spoof' registrations created during the rate-limit test were deleted via pymongo teardown.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_final_check.py",
+    "/app/test_reports/pytest/full_suite.xml",
+    "/app/test_reports/pytest/full_suite.log",
+    "/app/test_reports/pytest/final_check.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py client_ip() correctly walks X-Forwarded-For from the right, skipping entries that fall inside TRUSTED_PROXY_CIDRS. Since the cluster ingress appends the real egress IP to the right of any attacker-supplied XFF, rotating spoofed left-most values has no effect on the rate-limit bucket — verified with 12x201 then 429 using 13 distinct 203.0.113.x values.",
+    "config.py has a single source of truth (START_ISO) that derives datetime_label; all four surfaces (landing hero-datetime, /ticket hall ticket, add-to-calendar card, .ics DTSTART) resolve from this one constant, so there is zero drift risk.",
+    "/api/admin/demo-visibility and /api/admin/verify intentionally gate only on PIN (no Bearer token). Confirm this is the designed trust model — PIN leak == bypass. Not changing; just flagging."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_final_check.py (new)"
+  ],
+  "success_rate": {"backend": "100% (143/143 full suite + 9/9 run final-check, 1 skipped by design)", "frontend": "100% (hero-datetime, hall ticket, add-to-calendar, .ics all match)"},
+  "seed_data_creation": "Transient only: TestDuplicateEmail created 1 registration (test_dup_* email); TestRegisterRateLimitSpoofedXFF created 12 registrations with name 'RL Spoof' and deleted all 'RL Spoof' rows via pymongo in the class teardown. No persistent data added.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Register endpoint rate limit is 12 / 10 min / IP in memory. Any test that calls /api/register must `sudo supervisorctl restart backend && sleep ~8s` first if it needs 12+ successful attempts (the conftest.py scope='module' fixture already does this per module). Admin PIN endpoints (demo-visibility, verify) require schema {pin, hidden:bool} — not {pin,visible}. Admin login returns 'access_token' (JWT), not 'token'. Owner-only ticket controls require localStorage['hallticket.my_seat'] to be JSON-encoded, i.e. the string '\"NW-KGGN\"' not 'NW-KGGN'. The share page HTML is a redirect wrapper; the datetime label appears inside the OG/Twitter meta description.",
+  "rca_of_issue": "N/A — no bugs found; the earlier spoofed-XFF bypass is already fixed by server.py:154 client_ip() walking XFF from the right and skipping TRUSTED_PROXY_CIDRS."
+}

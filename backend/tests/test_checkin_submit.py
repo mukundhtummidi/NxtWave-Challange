@@ -20,7 +20,12 @@ GOOD_DESC = "Students waste time finding past papers. My app uses an LLM to tag 
 @pytest.fixture(scope="module")
 def app_client():
     import server
+    from motor.motor_asyncio import AsyncIOMotorClient
 
+    # Fresh Motor client per module: a client created at import time can be bound to an event loop
+    # that an earlier test already closed ("Event loop is closed").
+    server.client = AsyncIOMotorClient(os.environ["MONGO_URL"], tz_aware=True)
+    server.db = server.client[os.environ["DB_NAME"]]
     with TestClient(server.app) as c:
         yield c, server
 

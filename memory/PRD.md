@@ -85,3 +85,7 @@ Mobile-first web app "Your Hall Ticket" for a free online workshop "Build Your F
 
 ## 2026-06 update 3
 - FAQ accordion (src/faq.ts single source, src/components/Faq.tsx) at bottom of /, "Read the FAQ" link on ticket -> /?faq=1 scrolls to it.
+
+## 2026-06 update 4
+- Fix: register rate limit was bypassable via spoofed X-Forwarded-For; client_ip now skips TRUSTED_PROXY_CIDRS (backend/.env).
+- Tests: full suite passes in one run (conftest restarts preview backend per module; fresh Motor client in in-process tests). Added test_client_ip.py.
