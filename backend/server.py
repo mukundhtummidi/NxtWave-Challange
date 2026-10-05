@@ -24,6 +24,8 @@ from analytics import SOURCE_LABELS, daily_series, longest_chain, rep_breakdown,
 from auth import check_admin_password, create_admin_token, require_admin, require_admin_header_or_query
 from colleges import CANONICAL, normalize_college
 from config import BRANCHES, INTERESTS, WORKSHOP, YEARS
+from feedback import NOTE as FEEDBACK_NOTE
+from feedback import score_submission
 from projects import PROJECTS, get_project
 from render import render_og, render_story
 
@@ -688,6 +690,112 @@ async def get_rep(code: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Check-in and project submission (seat code is the only identifier; no email involved)
+# ---------------------------------------------------------------------------
+_SENTENCE_RE = re.compile(r"[^.!?]+(?:[.!?]+|$)")
+_URL_RE = re.compile(r"^https?://[^\s/$.?#][^\s]*$", re.I)
+DESCRIPTION_MAX = 600
+DESCRIPTION_MAX_SENTENCES = 3
+
+
+class SeatIn(BaseModel):
+    seat_code: str = Field(max_length=20)
+
+
+class SubmitIn(BaseModel):
+    seat_code: str = Field(max_length=20)
+    title: str = Field(max_length=200)
+    description: str = Field(max_length=2000)
+    link: Optional[str] = Field(default=None, max_length=500)
+
+
+def count_sentences(text: str) -> int:
+    return len([s for s in _SENTENCE_RE.findall(text) if re.search(r"[A-Za-z0-9]", s)])
+
+
+async def ticket_by_seat(code: str) -> dict:
+    code = (code or "").strip().upper()
+    if not _SEAT_RE.match(code):
+        raise HTTPException(status_code=422, detail="Seat codes look like NW-7K2Q")
+    return await find_ticket(code)
+
+
+@api.post("/checkin")
+async def checkin(body: SeatIn, request: Request):
+    check_rate_limit(client_ip(request), bucket="checkin", limit=30, window=600, message="Too many check-ins from this network. Try again in a few minutes.")
+    doc = await ticket_by_seat(body.seat_code)
+    now = datetime.now(timezone.utc)
+    res = await db.checkins.update_one(
+        {"seat_code": doc["seat_code"]},
+        {"$setOnInsert": {"seat_code": doc["seat_code"], "college_key": doc["college_key"], "is_demo": doc.get("is_demo", False), "checked_in_at": now}},
+        upsert=True,
+    )
+    row = await db.checkins.find_one({"seat_code": doc["seat_code"]}, {"_id": 0, "checked_in_at": 1})
+    return {
+        "seat_code": doc["seat_code"],
+        "first_name": doc["name"].split(" ")[0],
+        "already_checked_in": res.upserted_id is None,
+        "checked_in_at": row["checked_in_at"].isoformat(),
+    }
+
+
+@api.post("/submit")
+async def submit_project(body: SubmitIn, request: Request):
+    doc = await ticket_by_seat(body.seat_code)
+    title = clean_text(body.title, 200)
+    if not (3 <= len(title) <= 100):
+        raise HTTPException(status_code=422, detail="Project title must be 3 to 100 characters")
+    description = clean_text(body.description, 2000)
+    if len(description) < 30:
+        raise HTTPException(status_code=422, detail="Description is too short. Use up to 3 sentences, at least 30 characters.")
+    if len(description) > DESCRIPTION_MAX:
+        raise HTTPException(status_code=422, detail=f"Description must be {DESCRIPTION_MAX} characters or fewer")
+    if count_sentences(description) > DESCRIPTION_MAX_SENTENCES:
+        raise HTTPException(status_code=422, detail="Description must be 3 sentences or fewer")
+    link = (body.link or "").strip() or None
+    if link and not _URL_RE.match(link):
+        raise HTTPException(status_code=422, detail="Link must start with http:// or https://")
+    # Rate-limit only valid submissions (each one costs an LLM call).
+    check_rate_limit(client_ip(request), bucket="submit", limit=6, window=600, message="Too many submissions from this network. Try again in a few minutes.")
+
+    now = datetime.now(timezone.utc)
+    # Save first, so the submission survives even if feedback fails.
+    await db.submissions.update_one(
+        {"seat_code": doc["seat_code"]},
+        {
+            "$set": {"title": title, "description": description, "link": link, "is_demo": doc.get("is_demo", False), "feedback": None, "feedback_status": "pending", "updated_at": now},
+            "$setOnInsert": {"seat_code": doc["seat_code"], "created_at": now},
+        },
+        upsert=True,
+    )
+    feedback = await score_submission(title, description, link)
+    status = "ok" if feedback else "unavailable"
+    await db.submissions.update_one({"seat_code": doc["seat_code"]}, {"$set": {"feedback": feedback, "feedback_status": status}})
+    return {
+        "seat_code": doc["seat_code"],
+        "saved": True,
+        "title": title,
+        "description": description,
+        "link": link,
+        "feedback_status": status,
+        "feedback": feedback,
+        "message": None if feedback else "Your project is saved. Automated feedback is unavailable right now.",
+        "note": FEEDBACK_NOTE,
+    }
+
+
+async def attendance_stats(include_demo: bool) -> dict:
+    match: dict[str, Any] = {} if include_demo else {"is_demo": False}
+    reg_match: dict[str, Any] = {"deleted_at": None, **({} if include_demo else {"is_demo": False})}
+    return {
+        "checked_in": await db.checkins.count_documents(match),
+        "registered": await db.registrations.count_documents(reg_match),
+        "submissions": await db.submissions.count_documents(match),
+        "feedback_unavailable": await db.submissions.count_documents({**match, "feedback_status": "unavailable"}),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Admin (password from ADMIN_PASSWORD, 7-day JWT)
 # ---------------------------------------------------------------------------
 class AdminLoginIn(BaseModel):
@@ -711,7 +819,9 @@ async def admin_me(_: Annotated[dict, Depends(require_admin)]):
 async def admin_stats(_: Annotated[dict, Depends(require_admin)], include_demo: bool = True):
     regs_all = await load_regs(include_demo=True)
     reps = await db.reps.find({"deleted_at": None}, {"_id": 0}).to_list(1000)
-    return await compute_stats(regs_all, reps, include_demo=include_demo, demo_only=False)
+    stats = await compute_stats(regs_all, reps, include_demo=include_demo, demo_only=False)
+    stats["attendance"] = await attendance_stats(include_demo)
+    return stats
 
 
 @api.get("/admin-demo/stats")
@@ -989,6 +1099,8 @@ async def on_startup():
     await db.registrations.create_index("referred_by")
     await db.reps.create_index("rep_code", unique=True)
     await db.events.create_index([("type", 1), ("created_at", -1)])
+    await db.checkins.create_index("seat_code", unique=True)
+    await db.submissions.create_index("seat_code", unique=True)
     await seed_demo()
     await seed_reps()
     await seed_demo_shares()

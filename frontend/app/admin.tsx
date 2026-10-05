@@ -138,6 +138,25 @@ function Dashboard({ includeDemo, setIncludeDemo, onLogout, onExpired }: { inclu
           </View>
         )}
 
+        {s?.attendance && (
+          <View style={styles.attCard} testID="admin-attendance">
+            <Text style={styles.attKicker}>Attendance</Text>
+            <View style={styles.attRow}>
+              <View style={styles.attStat}>
+                <Text style={styles.attValue} testID="admin-attendance-checked-in">
+                  {s.attendance.checked_in}
+                </Text>
+                <Text style={styles.sub}>checked in of {s.attendance.registered} registered</Text>
+              </View>
+              <View style={styles.attStat}>
+                <Text style={styles.attValue} testID="admin-attendance-submissions">
+                  {s.attendance.submissions}
+                </Text>
+                <Text style={styles.sub}>projects submitted ({s.attendance.feedback_unavailable} without feedback)</Text>
+              </View>
+            </View>
+          </View>
+        )}
         {s && <StatsPanels s={s} includeDemo={includeDemo} />}
         <Footer />
       </PageContainer>
@@ -157,6 +176,11 @@ const useStyles = makeStyles((colors) => ({
   kicker: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: colors.brandPrimary },
   h1: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 32, color: colors.onSurface },
   sub: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.muted },
+  attCard: { borderWidth: 2, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surfaceSecondary, gap: spacing.sm },
+  attKicker: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.6, textTransform: "uppercase", color: colors.muted },
+  attRow: { flexDirection: "row", gap: spacing.lg, flexWrap: "wrap" },
+  attStat: { flex: 1, minWidth: 140, gap: 2 },
+  attValue: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 32, color: colors.onSurfaceSecondary },
   fineprint: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   note: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 16, color: colors.muted },
   toolbar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap", marginTop: spacing.xs },

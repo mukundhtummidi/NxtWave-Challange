@@ -77,3 +77,8 @@ Mobile-first web app "Your Hall Ticket" for a free online workshop "Build Your F
 - Board: "Top referrers" tab (top 10 seat codes, first name + college + count, demo rows labelled, respects hide-demo toggle).
 - config.py: START_ISO is the single source; datetime_label derived from it.
 - Tests: label/start_iso match, ticket endpoint has no email, top referrers respect hide-demo toggle.
+
+## 2026-06 update 2
+- /checkin (seat code -> attendance, idempotent), attendance card in /admin.
+- /submit (title, <=3 sentences / <=600 chars, optional http(s) link); Claude Sonnet 5.5 rubric (4 criteria, 1-4 each, /16) + 2 feedback lines + "Automated feedback, may be wrong". LLM failure -> saved, feedback unavailable, no scores invented.
+- Tests: backend/tests/test_checkin_submit.py, test_live_checkin_submit.py

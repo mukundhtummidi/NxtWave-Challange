@@ -141,6 +141,27 @@ export type AdminStats = {
   demo_hidden: boolean;
   demo_only: boolean;
   generated_at: string;
+  attendance?: { checked_in: number; registered: number; submissions: number; feedback_unavailable: number };
+};
+
+export type CheckinResult = { seat_code: string; first_name: string; already_checked_in: boolean; checked_in_at: string };
+
+export type Feedback = {
+  scores: { key: string; label: string; score: number; max: number }[];
+  total: number;
+  max_total: number;
+  lines: string[];
+  note: string;
+};
+
+export type SubmitResult = {
+  seat_code: string;
+  saved: boolean;
+  title: string;
+  feedback_status: "ok" | "unavailable";
+  feedback: Feedback | null;
+  message: string | null;
+  note: string;
 };
 
 export type EventType = "page_view" | "form_started" | "share_clicked" | "message_copied";
@@ -201,6 +222,8 @@ export const api = {
     request<{ demo_hidden: boolean }>("/admin/demo-visibility", { method: "POST", body: JSON.stringify({ pin, hidden }) }),
   event: (body: { type: EventType; session_id: string; path?: string; seat_code?: string; tone?: string; channel?: string }) =>
     request<void>("/events", { method: "POST", body: JSON.stringify(body) }),
+  checkin: (seat_code: string) => request<CheckinResult>("/checkin", { method: "POST", body: JSON.stringify({ seat_code }) }),
+  submit: (body: { seat_code: string; title: string; description: string; link: string | null }) => request<SubmitResult>("/submit", { method: "POST", body: JSON.stringify(body) }),
   rep: (code: string) => request<RepDashboard>(`/reps/${encodeURIComponent(code)}`),
   adminLogin: async (password: string) => {
     const res = await request<{ access_token: string }>("/admin/login", { method: "POST", body: JSON.stringify({ password }) });

@@ -1,0 +1,28 @@
+{
+  "summary": "Backend + frontend testing for /checkin and /submit features. pytest suite /app/backend/tests/test_checkin_submit.py: 30/30 PASS (validation, 404 for NW-0000, idempotent check-in with preserved checked_in_at, no PII leakage, admin attendance count, LLM failure path with monkeypatched score_submission saving submission + feedback_status=unavailable, success shape with mocked model, parse_feedback never invents scores). New live-URL regression suite /app/backend/tests/test_live_checkin_submit.py: 8/8 PASS against public EXPO_PUBLIC_BACKEND_URL (checkin 422/404, NW-KGGN already_checked_in=true with first_name only + no @ in body + stable checked_in_at, /submit 422 bad title/link, 404 unknown seat with valid body, /api/admin/stats auth-gated and returns attendance keys {checked_in, registered, submissions, feedback_unavailable}). Frontend /checkin, /submit, /admin, /ticket/:code owner view all verified via mobile viewport (390x844): valid NW-KGGN check-in shows 'Already checked in, Ravi' with checked_in_at; /submit form has char counter (105/600), submit button correctly disabled on bad title/link and enabled on valid input; admin dashboard shows attendance card with checked_in=4 submissions=4 (0 without feedback); ticket owner view (with hallticket.my_seat set as JSON string) shows ticket-checkin-link + ticket-submit-link and navigates to /checkin. No real LLM scoring was triggered to avoid quota and the 6/10m-per-IP rate limit (NW-KGGN already submitted once per prompt).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_checkin_submit.py",
+    "/app/backend/tests/test_live_checkin_submit.py",
+    "/app/test_reports/pytest/checkin_submit_results.xml",
+    "/app/test_reports/pytest/live_checkin_submit.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "feedback.py correctly treats any non-conforming LLM output as unavailable and never invents a score (good).",
+    "/api/admin/login response uses 'access_token' (JWT) rather than 'token'; prompt text said 'Bearer token from POST /api/admin/login' — behavior is consistent with existing tests but noting the key name for any future client code."
+  ],
+  "updated_files": ["/app/backend/tests/test_live_checkin_submit.py"],
+  "success_rate": {"backend": "100% (30/30 pytest + 8/8 live)", "frontend": "100% (checkin, submit validation, admin attendance, ticket owner CTAs)"},
+  "seed_data_creation": "None. Reused existing seat NW-KGGN per prompt. pytest fixture registers a throwaway seat via /api/register inside TestClient.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend /submit is rate-limited to 6 valid submissions / 10 min / IP, and admin login to 10/10m/IP; register endpoint to 12/10m/IP. Avoid loops that re-login or re-register. NW-KGGN is already checked in and has >=1 submission with feedback. For LLM success-path assertions, monkeypatch server.score_submission inside TestClient instead of hitting the real model. Owner-only ticket CTAs require localStorage key 'hallticket.my_seat' to be JSON-encoded (i.e. value stored as '\"NW-KGGN\"').",
+  "rca_of_issue": "N/A — no bugs found."
+}

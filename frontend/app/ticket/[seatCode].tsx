@@ -97,10 +97,18 @@ export default function TicketScreen() {
   ) : null;
 
   const boardLinkBlock = t ? (
+    <>
+    {isMine && (
+      <View style={styles.actionRow}>
+        <Button testID="ticket-checkin-link" title="Check in" variant="outline" small style={{ flex: 1 }} onPress={() => router.push("/checkin")} icon={<Ionicons name="log-in-outline" size={16} color={colors.onSurface} />} />
+        <Button testID="ticket-submit-link" title="Submit project" variant="outline" small style={{ flex: 1 }} onPress={() => router.push("/submit")} icon={<Ionicons name="rocket-outline" size={16} color={colors.onSurface} />} />
+      </View>
+    )}
     <Pressable testID="ticket-board-link" accessibilityRole="link" onPress={() => router.push("/board")} style={({ focused }: any) => [styles.boardLink, focused && styles.focused]}>
       <Ionicons name="podium-outline" size={18} color={colors.onSurface} />
       <Text style={styles.boardLinkText}>See how {t.college} is doing on the campus board →</Text>
     </Pressable>
+    </>
   ) : null;
 
   return (
@@ -172,6 +180,7 @@ const useStyles = makeStyles((colors) => ({
   refCountText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onBrandSecondary, flex: 1 },
   cta: { gap: spacing.md, borderWidth: 2, borderColor: colors.border, borderRadius: radius.md, padding: spacing.lg, backgroundColor: colors.surfaceSecondary },
   ctaTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.onSurfaceSecondary },
+  actionRow: { flexDirection: "row", gap: spacing.sm },
   boardLink: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44 },
   boardLinkText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onSurface, flex: 1 },
   focused: { outlineStyle: "solid", outlineWidth: 3, outlineColor: colors.focus, outlineOffset: 2 } as any,
