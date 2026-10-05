@@ -52,7 +52,27 @@ export default function BoardScreen() {
 
   const hasItems = !!board && board.items.length > 0;
 
-  const listNode = hasItems ? (
+  const tabsNode = (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow} contentContainerStyle={styles.tabsContent} testID="board-tabs">
+      {([
+        ["colleges", "Colleges"],
+        ["referrers", "Top referrers"],
+      ] as const).map(([key, label]) => (
+        <Pressable
+          key={key}
+          testID={`board-tab-${key}`}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === key }}
+          onPress={() => setTab(key)}
+          style={[styles.tabChip, tab === key && styles.tabChipOn]}
+        >
+          <Text style={[styles.tabChipText, tab === key && styles.tabChipTextOn]}>{label}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+
+  const collegesNode = hasItems ? (
     <View style={styles.list} testID="board-list">
       {board!.items.map((item) => (
         <BoardRow key={item.college_key} item={item} unlockLabel={board!.unlock_label} />
@@ -60,10 +80,48 @@ export default function BoardScreen() {
     </View>
   ) : null;
 
+  const referrersNode = board ? (
+    board.top_referrers.length > 0 ? (
+      <View style={styles.list} testID="referrers-list">
+        {board.top_referrers.map((r, i) => (
+          <View key={r.seat_code} style={styles.row} testID={`referrer-row-${r.seat_code}`}>
+            <View style={styles.rowTop}>
+              <Text style={styles.rank}>{String(i + 1).padStart(2, "0")}</Text>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.college} numberOfLines={1}>
+                  {r.first_name} <Text style={styles.seat}>· {r.seat_code}</Text>
+                </Text>
+                <Text style={styles.remaining} numberOfLines={1}>
+                  {r.college}
+                </Text>
+              </View>
+              <Text style={styles.count}>
+                <Text style={styles.countBig}>{r.count}</Text> {r.count === 1 ? "friend" : "friends"}
+              </Text>
+            </View>
+            {r.is_demo && (
+              <Text style={styles.demoNote} testID={`referrer-demo-${r.seat_code}`}>
+                Demo data
+              </Text>
+            )}
+          </View>
+        ))}
+      </View>
+    ) : (
+      <View style={styles.center} testID="referrers-empty">
+        <Text style={styles.muted}>No referrals yet. Share your hall ticket link to be first here.</Text>
+      </View>
+    )
+  ) : null;
+
+  const listNode = tab === "colleges" ? collegesNode : referrersNode;
+
   const footnoteNode = board ? (
     <Text style={styles.footnote} testID="board-footnote">
-      Counts are distinct registrations per college (one per email).
-      {board.has_demo && !board.demo_hidden ? ` ${board.demo_total} of ${board.total} shown are seeded demo entries, labelled "Demo data".` : ""}
+      {tab === "colleges"
+        ? "Counts are distinct registrations per college (one per email)."
+        : "Top 10 seat codes by friends who registered with them. First name and college only."}
+      {board.has_demo && !board.demo_hidden ? (tab === "colleges" ? ` ${board.demo_total} of ${board.total} shown are seeded demo entries, labelled "Demo data".` : ' Seeded demo rows are labelled "Demo data".') : ""}
     </Text>
   ) : null;
 
@@ -146,7 +204,9 @@ export default function BoardScreen() {
               <Text style={styles.muted}>Failed to fetch the board. Pull to retry.</Text>
             </View>
           )}
-          {board && board.items.length === 0 && (
+          {tabsNode}
+
+          {tab === "colleges" && board && board.items.length === 0 && (
             <View style={styles.center} testID="board-empty">
               <Text style={styles.muted}>No registrations yet. Be the first bar on this board.</Text>
             </View>
@@ -265,6 +325,13 @@ const useStyles = makeStyles((colors) => ({
   colMain: { flex: 1.7, minWidth: 0, gap: spacing.xl },
   colSide: { flex: 1, minWidth: 0, maxWidth: 360 },
   hero: { gap: spacing.sm },
+  tabsRow: { flexGrow: 0, height: 56, marginTop: spacing.md },
+  tabsContent: { gap: spacing.sm, alignItems: "center" },
+  tabChip: { flexShrink: 0, height: 36, justifyContent: "center", paddingHorizontal: spacing.md, borderWidth: 2, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surfaceSecondary },
+  tabChipOn: { backgroundColor: colors.surfaceInverse },
+  tabChipText: { fontFamily: fonts.bold, fontSize: 13, color: colors.onSurfaceSecondary },
+  tabChipTextOn: { color: colors.onSurfaceInverse },
+  seat: { fontFamily: fonts.mono, fontSize: 12, color: colors.muted },
   kicker: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: colors.brandPrimary },
   h1: { fontFamily: fonts.bold, fontSize: 28, lineHeight: 32, color: colors.onSurface, letterSpacing: -0.4 },
   lede: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, color: colors.onSurface },

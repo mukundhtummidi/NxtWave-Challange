@@ -1,12 +1,21 @@
 """Single place to edit workshop details. Everything else reads from here."""
+from datetime import datetime
+
+# <-- EDIT THIS ONE LINE to change the workshop start everywhere (IST, ISO-8601 with +05:30 offset).
+# Powers the date label (ticket, OG image, share text), the landing countdown and Add-to-calendar.
+START_ISO = "2026-10-17T18:00:00+05:30"
+
+
+def _ist_label(iso: str) -> str:
+    d = datetime.fromisoformat(iso)
+    hour = d.hour % 12 or 12
+    return f"{d:%a}, {d.day} {d:%b %Y} · {hour}:{d:%M} {'AM' if d.hour < 12 else 'PM'} IST"
+
 
 WORKSHOP = {
     "title": "Build Your First AI Project in 60 Minutes",
-    # <-- EDIT THIS ONE LINE to change the date/time shown everywhere (ticket, OG image, share text)
-    "datetime_label": "Sat, 17 Oct 2026 · 6:00 PM IST",
-    # Machine-readable workshop start (IST, ISO-8601 with offset). Keep it in sync with datetime_label.
-    # Powers the countdown on the landing page and the Add-to-calendar (.ics + Google Calendar) links.
-    "start_iso": "2026-10-17T18:00:00+05:30",
+    "datetime_label": _ist_label(START_ISO),  # derived from START_ISO so they can never drift
+    "start_iso": START_ISO,
     "duration_label": "60 minutes · Online (joining link shared before the session)",
     "duration_minutes": 60,
     "mode": "Online",

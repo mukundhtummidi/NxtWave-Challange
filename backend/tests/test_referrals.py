@@ -111,3 +111,30 @@ class TestConfigStartIso:
         w = s.get(f"{API}/config").json()["workshop"]
         assert "start_iso" in w and w["start_iso"].startswith("2026-10-17T18:00:00")
         assert w["duration_minutes"] == 60
+
+    def test_label_matches_start_iso(self, s):
+        from datetime import datetime, timedelta
+
+        w = s.get(f"{API}/config").json()["workshop"]
+        d = datetime.fromisoformat(w["start_iso"])
+        assert d.utcoffset() == timedelta(hours=5, minutes=30), "start_iso must be in IST"
+        assert w["datetime_label"] == "Sat, 17 Oct 2026 · 6:00 PM IST"
+
+
+class TestTicketReferralsPrivacy:
+    def test_ticket_endpoint_has_no_email(self, s, owner_with_referral):
+        body = s.get(f"{API}/tickets/{owner_with_referral['seat']}").text
+        assert "@" not in body and '"email' not in body.lower()
+
+    def test_demo_rows_respect_hide_toggle(self, s):
+        pin = os.environ.get("ADMIN_PIN")
+        if not pin:
+            pytest.skip("ADMIN_PIN not set")
+        try:
+            assert s.post(f"{API}/admin/demo-visibility", json={"pin": pin, "hidden": True}).status_code == 200
+            tr = s.get(f"{API}/board").json()["top_referrers"]
+            assert all(row["is_demo"] is False for row in tr)
+        finally:
+            s.post(f"{API}/admin/demo-visibility", json={"pin": pin, "hidden": False})
+        tr = s.get(f"{API}/board").json()["top_referrers"]
+        assert any(row["is_demo"] for row in tr), "demo referrers should be back when toggle is off"

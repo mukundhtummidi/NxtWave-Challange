@@ -72,3 +72,8 @@ Mobile-first web app "Your Hall Ticket" for a free online workshop "Build Your F
 - ShareSheet: WhatsApp/Telegram/X/Email (intents), LinkedIn/Facebook (copy text + open), Instagram (save story + copy link), More… (Web Share where available).
 - share_clicked events accept optional validated `channel` (unknown -> 422). New admin/admin-demo "Shares and registrations by platform" panel; share_channel added to CSV.
 - Backend tests: tests/test_channel.py (23). Updated test_hallticket share-HTML redirect assertion + tightened test_admin_demo PII check.
+
+## 2026-06 update
+- Board: "Top referrers" tab (top 10 seat codes, first name + college + count, demo rows labelled, respects hide-demo toggle).
+- config.py: START_ISO is the single source; datetime_label derived from it.
+- Tests: label/start_iso match, ticket endpoint has no email, top referrers respect hide-demo toggle.
