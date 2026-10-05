@@ -70,6 +70,18 @@ export default function TicketScreen() {
     />
   ) : null;
 
+  const faqLinkBlock = t ? (
+    <Pressable
+      testID="ticket-faq-link"
+      accessibilityRole="link"
+      onPress={() => router.push({ pathname: "/", params: { faq: "1" } })}
+      style={({ focused }: any) => [styles.faqLink, focused && styles.focused]}
+    >
+      <Ionicons name="help-circle-outline" size={16} color={colors.muted} />
+      <Text style={styles.faqLinkText}>Read the FAQ</Text>
+    </Pressable>
+  ) : null;
+
   const badgesBlock = t && isMine ? <MilestoneBadges count={t.referral_count} /> : null;
 
   const shareBlock = t ? (
@@ -138,6 +150,7 @@ export default function TicketScreen() {
                 <View style={styles.colMain}>
                   {headerBlock}
                   {ticketBlock}
+                  {faqLinkBlock}
                   {badgesBlock}
                 </View>
                 <View style={styles.colSide}>
@@ -149,6 +162,7 @@ export default function TicketScreen() {
               <>
                 {headerBlock}
                 {ticketBlock}
+                {faqLinkBlock}
                 {badgesBlock}
                 {shareBlock}
                 {boardLinkBlock}
@@ -181,6 +195,8 @@ const useStyles = makeStyles((colors) => ({
   cta: { gap: spacing.md, borderWidth: 2, borderColor: colors.border, borderRadius: radius.md, padding: spacing.lg, backgroundColor: colors.surfaceSecondary },
   ctaTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.onSurfaceSecondary },
   actionRow: { flexDirection: "row", gap: spacing.sm },
+  faqLink: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 44, marginTop: -spacing.md },
+  faqLinkText: { fontFamily: fonts.medium, fontSize: 13, color: colors.muted, textDecorationLine: "underline" },
   boardLink: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44 },
   boardLinkText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onSurface, flex: 1 },
   focused: { outlineStyle: "solid", outlineWidth: 3, outlineColor: colors.focus, outlineOffset: 2 } as any,

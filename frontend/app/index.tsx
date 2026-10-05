@@ -1,6 +1,6 @@
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -11,6 +11,7 @@ import { api, ApiError, RegisterPayload } from "@/src/api";
 import { Button } from "@/src/components/Button";
 import { ChipRow } from "@/src/components/ChipRow";
 import { CollegePicker } from "@/src/components/CollegePicker";
+import { Faq } from "@/src/components/Faq";
 import { Field } from "@/src/components/Field";
 import { Footer } from "@/src/components/Footer";
 import { HallTicket } from "@/src/components/HallTicket";
@@ -55,6 +56,23 @@ export default function Home() {
     storage.getItem(MY_SEAT_KEY, null).then((v) => setMySeat(typeof v === "string" ? v : null));
     track("page_view", { path: "/", once: true });
   }, []);
+
+  // /?faq=1 (from "Read the FAQ" on the ticket page) scrolls straight to the FAQ.
+  const { faq } = useLocalSearchParams<{ faq?: string }>();
+  const scrollRef = useRef<any>(null);
+  const faqY = useRef<number | null>(null);
+  useEffect(() => {
+    if (!faq) return;
+    let tries = 0;
+    const id = setInterval(() => {
+      tries += 1;
+      if (faqY.current != null && scrollRef.current) {
+        scrollRef.current.scrollTo({ y: Math.max(0, faqY.current - spacing.md), animated: true });
+        clearInterval(id);
+      } else if (tries > 20) clearInterval(id);
+    }, 100);
+    return () => clearInterval(id);
+  }, [faq]);
 
   const formStarted = useRef(false);
   const onFormTouch = () => {
@@ -130,6 +148,7 @@ export default function Home() {
     <View style={styles.screen} testID="home-screen">
       <Header />
       <KeyboardAwareScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
         bottomOffset={24}
@@ -248,8 +267,6 @@ export default function Home() {
                 We store your name, email and college only to issue the ticket. No emails are sent; the joining link is shared before the session.
               </Text>
             </View>
-
-            <Footer text={workshop?.footer} />
           </View>
 
           {twoCol && (
@@ -258,6 +275,13 @@ export default function Home() {
               {ticketCard}
             </View>
           )}
+        </View>
+
+        <View onLayout={(e) => (faqY.current = e.nativeEvent.layout.y)}>
+          <Faq />
+        </View>
+        <View style={[styles.container, twoCol && styles.footerWide]}>
+          <Footer text={workshop?.footer} />
         </View>
       </KeyboardAwareScrollView>
     </View>
@@ -272,6 +296,7 @@ const useStyles = makeStyles((colors) => ({
   containerWide: { maxWidth: 1100, flexDirection: "row", alignItems: "flex-start", gap: spacing["2xl"] },
   col: { gap: spacing.xl, width: "100%" },
   colForm: { flex: 1, minWidth: 0 },
+  footerWide: { maxWidth: 1100, marginTop: spacing.xl },
   colPreview: { flex: 1, minWidth: 0, ...(Platform.OS === "web" ? ({ position: "sticky", top: 88 } as any) : {}) },
   hero: { gap: spacing.md },
   heroTag: { alignSelf: "flex-start", backgroundColor: colors.brandSecondary, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.md },

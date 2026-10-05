@@ -82,3 +82,6 @@ Mobile-first web app "Your Hall Ticket" for a free online workshop "Build Your F
 - /checkin (seat code -> attendance, idempotent), attendance card in /admin.
 - /submit (title, <=3 sentences / <=600 chars, optional http(s) link); Claude Sonnet 5.5 rubric (4 criteria, 1-4 each, /16) + 2 feedback lines + "Automated feedback, may be wrong". LLM failure -> saved, feedback unavailable, no scores invented.
 - Tests: backend/tests/test_checkin_submit.py, test_live_checkin_submit.py
+
+## 2026-06 update 3
+- FAQ accordion (src/faq.ts single source, src/components/Faq.tsx) at bottom of /, "Read the FAQ" link on ticket -> /?faq=1 scrolls to it.
